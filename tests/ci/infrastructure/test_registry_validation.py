@@ -144,6 +144,33 @@ class TestType2Pattern:
 class TestValidationRules:
 	"""Test validation rules for action registration (from normalization tests)"""
 
+	def test_pep604_optional_special_param(self):
+		registry = Registry()
+
+		@registry.action('Optional browser session')
+		async def optional_session(browser_session: BrowserSession | None = None):
+			return ActionResult()
+
+		assert 'optional_session' in registry.registry.actions
+
+	def test_stringified_pep604_optional_special_param(self):
+		registry = Registry()
+
+		@registry.action('Postponed optional browser session')
+		async def optional_session(browser_session: 'BrowserSession | None' = None):
+			return ActionResult()
+
+		assert 'optional_session' in registry.registry.actions
+
+	def test_stringified_wrong_special_param_type_is_rejected(self):
+		registry = Registry()
+
+		with pytest.raises(ValueError, match='conflicts with special argument'):
+
+			@registry.action('Wrong postponed browser session')
+			async def wrong_session(browser_session: 'str | None' = None):
+				return ActionResult()
+
 	def test_error_on_kwargs_in_original_function(self):
 		"""Should error if original function has kwargs"""
 		registry = Registry()
