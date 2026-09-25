@@ -5,8 +5,8 @@ import logging
 import re
 from collections.abc import Callable
 from inspect import Parameter, iscoroutinefunction, signature
-from types import UnionType
-from typing import Any, Generic, Optional, TypeVar, Union, get_args, get_origin
+from types import SimpleNamespace, UnionType
+from typing import Any, Generic, Optional, TypeVar, Union, get_args, get_origin, get_type_hints
 
 import pyotp
 from pydantic import BaseModel, Field, RootModel, create_model
@@ -116,6 +116,16 @@ class Registry(Generic[Context]):
 				if param.annotation != Parameter.empty and expected_type is not None:
 					# Handle Optional types - normalize both sides (both typing.Union and PEP 604 X | None)
 					param_type = param.annotation
+					if isinstance(param_type, str):
+						# Resolve only this injected type; unrelated forward references may be local to the action.
+						try:
+							param_type = get_type_hints(
+								SimpleNamespace(__annotations__={param.name: param_type}),
+								globalns=getattr(func, '__globals__', {}),
+								localns={getattr(expected_type, '__name__', str(expected_type)): expected_type},
+							)[param.name]
+						except (NameError, SyntaxError, TypeError):
+							pass
 					origin = get_origin(param_type)
 					if origin is Union or origin is UnionType:
 						args = get_args(param_type)
